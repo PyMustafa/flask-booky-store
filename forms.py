@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, DateField, FloatField, SelectField, FileField, SubmitField, PasswordField
-from wtforms.validators import DataRequired, Length, NumberRange, ValidationError, Regexp, Email, EqualTo
+from wtforms.validators import DataRequired, Length, NumberRange, ValidationError, Regexp, Email, EqualTo, Optional
 from datetime import datetime
 from models import User
 
@@ -10,7 +10,7 @@ class AuthorForm(FlaskForm):
         Length(min=2, max=100, message="❗ Author name must be between 2 and 100 characters."),
         Regexp(r'^[A-Za-z\s .]+$', message="❗ Author name must contain only letters and spaces.")
     ])
-    submit = SubmitField('Add Author')
+    submit = SubmitField('Submit')
 
 
 class BookForm(FlaskForm):
@@ -41,11 +41,10 @@ class BookForm(FlaskForm):
         DataRequired(message="❗ Author is required.")
     ])
 
-    image = FileField('Book Image', validators=[
-        DataRequired(message="❗ Book image is required.")
-    ])
+    # Making image optional for edit mode
+    image = FileField('Book Image')
 
-    submit = SubmitField('Add Book')
+    submit = SubmitField('Submit')
 
     def validate_publish_date(self, field):
         if field.data > datetime.today().date():

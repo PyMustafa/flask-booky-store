@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, session, g
+from flask import Flask, render_template, redirect, url_for, flash, request, session, g, jsonify
 from flask_migrate import Migrate
 from forms import AuthorForm, BookForm, RegistrationForm, LoginForm
 from models import db, Author, Book, User, bcrypt
@@ -20,8 +20,10 @@ migrate = Migrate(app, db)
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
 
 @app.before_request
 def before_request():
@@ -29,14 +31,17 @@ def before_request():
     if 'user_id' in session:
         g.user = User.query.get(session['user_id'])
 
+
 @app.context_processor
 def inject_user():
     return dict(user=g.user)
+
 
 @app.route('/')
 def index():
     books = Book.query.all()
     return render_template('index.html', books=books)
+
 
 @app.route('/add_author', methods=['GET', 'POST'])
 def add_author():
@@ -47,7 +52,37 @@ def add_author():
         db.session.commit()
         flash('Author added successfully!', 'success')
         return redirect(url_for('index'))
-    return render_template('add_author.html', form=form)
+    return render_template('add_author.html', form=form, title="Add Author")
+
+
+@app.route('/edit_author/<int:author_id>', methods=['GET', 'POST'])
+def edit_author(author_id):
+    author = Author.query.get_or_404(author_id)
+    form = AuthorForm(obj=author)
+
+    if form.validate_on_submit():
+        author.name = form.name.data
+        db.session.commit()
+        flash('Author updated successfully!', 'success')
+        return redirect(url_for('author_details', author_id=author.id))
+
+    return render_template('add_author.html', form=form, title="Edit Author")
+
+
+@app.route('/delete_author/<int:author_id>', methods=['POST'])
+def delete_author(author_id):
+    author = Author.query.get_or_404(author_id)
+
+    # Check if author has books
+    if author.books:
+        flash("Cannot delete author with associated books. Delete the books first.", "danger")
+        return redirect(url_for('author_details', author_id=author_id))
+
+    db.session.delete(author)
+    db.session.commit()
+    flash('Author deleted successfully!', 'success')
+    return redirect(url_for('authors'))
+
 
 @app.route('/add_book', methods=['GET', 'POST'])
 def add_book():
@@ -77,7 +112,63 @@ def add_book():
         db.session.commit()
         flash('Book added successfully!', 'success')
         return redirect(url_for('index'))
-    return render_template('add_book.html', form=form)
+    return render_template('add_book.html', form=form, title="Add Book")
+
+
+@app.route('/edit_book/<int:book_id>', methods=['GET', 'POST'])
+def edit_book(book_id):
+    book = Book.query.get_or_404(book_id)
+    form = BookForm()
+    form.author_id.choices = [(a.id, a.name) for a in Author.query.all()]
+
+    if request.method == 'GET':
+        # Manually set form data for GET request
+        form.name.data = book.name
+        # Convert string date to datetime object if necessary
+        if isinstance(book.publish_date, str):
+            from datetime import datetime
+            try:
+                # Try to parse the date string - adjust format as needed
+                form.publish_date.data = datetime.strptime(book.publish_date, '%Y-%m-%d').date()
+            except ValueError:
+                # If parsing fails, don't set the date
+                form.publish_date.data = None
+        else:
+            form.publish_date.data = book.publish_date
+        form.price.data = book.price
+        form.appropriate_age.data = book.appropriate_age
+        form.author_id.data = book.author_id
+
+    if form.validate_on_submit():
+        book.name = form.name.data
+        book.publish_date = form.publish_date.data
+        book.price = form.price.data
+        book.appropriate_age = form.appropriate_age.data
+        book.author_id = form.author_id.data
+
+        # Handle image update
+        if form.image.data:
+            image_file = form.image.data
+            if image_file and allowed_file(image_file.filename):
+                filename = secure_filename(image_file.filename)
+                image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                image_file.save(image_path)
+                book.image_url = f'uploads/{filename}'
+
+        db.session.commit()
+        flash('Book updated successfully!', 'success')
+        return redirect(url_for('book_details', book_id=book.id))
+
+    return render_template('add_book.html', form=form, title="Edit Book", book=book)
+
+@app.route('/delete_book/<int:book_id>', methods=['POST'])
+def delete_book(book_id):
+    book = Book.query.get_or_404(book_id)
+    db.session.delete(book)
+    db.session.commit()
+    flash('Book deleted successfully!', 'success')
+    return redirect(url_for('index'))
+
 
 @app.route('/book/<int:book_id>')
 def book_details(book_id):
@@ -85,15 +176,18 @@ def book_details(book_id):
     print(f"Image URL: {book.image_url}")
     return render_template('book.html', book=book)
 
+
 @app.route('/author/<int:author_id>')
 def author_details(author_id):
     author = Author.query.get_or_404(author_id)
     return render_template('author_details.html', author=author)
 
+
 @app.route('/authors')
 def authors():
     all_authors = Author.query.all()
     return render_template('authors_list.html', authors=all_authors)
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -106,6 +200,7 @@ def register():
         flash('Your account has been created! You are now able to log in', 'success')
         return redirect(url_for('login'))
     return render_template('register.html', form=form)
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -120,11 +215,13 @@ def login():
             flash('Login Unsuccessful. Please check email and password', 'danger')
     return render_template('login.html', form=form)
 
+
 @app.route('/logout')
 def logout():
     session.pop('user_id', None)
     flash('You have been logged out!', 'success')
     return redirect(url_for('index'))
+
 
 if __name__ == '__main__':
     with app.app_context():

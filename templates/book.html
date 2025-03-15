@@ -1,23 +1,48 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
 {% block content %}
-<div class="product-details-vertical">
-    <div class="product-image" >
-        <img src="{{ url_for('static', filename=book.image_url) }}" alt="{{ book.name }}">
-    </div>
-    <div class="product-info">
-        <h1>{{ book.name }}</h1>
-
-        <div class="price">
-            <span class="current-price">${{ book.price }}</span>
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-4">
+            <img src="{{ url_for('static', filename=book.image_url) }}" alt="{{ book.name }}" class="img-fluid rounded">
         </div>
-        <p class="description">
-            <strong>Author:</strong> <a href="{{ url_for('author_details', author_id=book.author.id) }}">{{ book.author.name }}</a><br>
-            <strong>Publish Date:</strong> {{ book.publish_date }}<br>
-            <strong>Appropriate Age:</strong> {{ book.appropriate_age }}
-        </p>
-        <a href="#" class="btn">Add to Cart</a>
-        <a href="{{ url_for('index') }}" class="btn-back">Back to Books</a>
+        <div class="col-md-8">
+            <h1>{{ book.name }}</h1>
+            <p><strong>Author:</strong> <a href="{{ url_for('author_details', author_id=book.author.id) }}">{{ book.author.name }}</a></p>
+            <p><strong>Published:</strong> {{ book.publish_date }}</p>
+            <p><strong>Price:</strong> ${{ "%.2f"|format(book.price) }}</p>
+            <p><strong>Appropriate Age:</strong> {{ book.appropriate_age }}</p>
+
+            {% if g.user %}
+            <div class="mt-4">
+                <a href="{{ url_for('edit_book', book_id=book.id) }}" class="btn btn-primary">Edit Book</a>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteBookModal">
+                    Delete Book
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteBookModal" tabindex="-1" aria-labelledby="deleteBookModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteBookModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete the book "{{ book.name }}"? This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('delete_book', book_id=book.id) }}" method="post">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
