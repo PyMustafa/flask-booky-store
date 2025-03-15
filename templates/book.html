@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="product-details-vertical">
+    <div class="product-image" >
+        <img src="{{ url_for('static', filename=book.image_url) }}" alt="{{ book.name }}">
+    </div>
+    <div class="product-info">
+        <h1>{{ book.name }}</h1>
+
+        <div class="price">
+            <span class="current-price">${{ book.price }}</span>
+        </div>
+        <p class="description">
+            <strong>Author:</strong> <a href="{{ url_for('author_details', author_id=book.author.id) }}">{{ book.author.name }}</a><br>
+            <strong>Publish Date:</strong> {{ book.publish_date }}<br>
+            <strong>Appropriate Age:</strong> {{ book.appropriate_age }}
+        </p>
+        <a href="#" class="btn">Add to Cart</a>
+        <a href="{{ url_for('index') }}" class="btn-back">Back to Books</a>
+    </div>
+</div>
+{% endblock %}

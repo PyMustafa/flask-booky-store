@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Add Book</h2>
+    <form method="POST" action="{{ url_for('add_book') }}" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+        
+        <div class="form-group">
+            {{ form.name.label }}<br>
+            {{ form.name(size=50) }}<br>
+            {% for error in form.name.errors %}
+                <span class="error-message">{{ error }}</span><br>
+            {% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.publish_date.label }}<br>
+            {{ form.publish_date }}<br>
+            {% for error in form.publish_date.errors %}
+                <span class="error-message">{{ error }}</span><br>
+            {% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.price.label }}<br>
+            {{ form.price }}<br>
+            {% for error in form.price.errors %}
+                <span class="error-message">{{ error }}</span><br>
+            {% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.appropriate_age.label }}<br>
+            {{ form.appropriate_age }}<br>
+            {% for error in form.appropriate_age.errors %}
+                <span class="error-message">{{ error }}</span><br>
+            {% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.author_id.label }}<br>
+            {{ form.author_id }}<br>
+            {% for error in form.author_id.errors %}
+                <span class="error-message">{{ error }}</span><br>
+            {% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.image.label }}<br>
+            {{ form.image }}<br>
+            {% for error in form.image.errors %}
+                <span class="error-message">{{ error }}</span><br>
+            {% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.submit(class="btn") }}
+        </div>
+    </form>
+</div>
+{% endblock %}

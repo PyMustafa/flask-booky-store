@@ -1,0 +1,10 @@
+<div class="card book-card">
+    <a href="{{ url_for('book_details', book_id=book.id) }}">
+        <img src="{{ url_for('static', filename=book.image_url) }}" alt="{{ book.name }}" class="book-image">
+    </a>
+
+    <h5>{{ book.name }}</h5>
+    <p>By {{ book.author.name }}</p>
+    <p class="price">${{ book.price }}</p>
+    <a href="#" class="btn">Add To Card</a>
+</div>

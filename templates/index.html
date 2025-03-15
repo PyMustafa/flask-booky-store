@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>All Books</h1>
+<div class="books-container">
+    {% for book in books %}
+        {% include 'components/book_card.html' %}
+    {% endfor %}
+</div>
+{% endblock %}

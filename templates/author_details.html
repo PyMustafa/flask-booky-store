@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Author Details Section -->
+    <div class="author-details-section">
+        <h2>{{ author.name }}</h2>
+    </div>
+
+    <!-- Books Section -->
+    <div class="books-section">
+
+        <div class="books-container">
+            {% if author.books %}
+                {% for book in author.books %}
+                    {% include 'components/book_card.html' %}
+                {% endfor %}
+            {% else %}
+                <p class="no-books-text">No books available for this author.</p>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}
