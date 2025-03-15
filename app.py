@@ -1,5 +1,6 @@
 from flask import Flask, render_template, redirect, url_for, flash, request, session, g, jsonify
 from flask_migrate import Migrate
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from forms import AuthorForm, BookForm, RegistrationForm, LoginForm
 from models import db, Author, Book, User, bcrypt
 import os
@@ -15,8 +16,22 @@ UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 
+# Initialize extensions
 db.init_app(app)
 migrate = Migrate(app, db)
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page'
+login_manager.login_message_category = 'info'
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
@@ -44,6 +59,7 @@ def index():
 
 
 @app.route('/add_author', methods=['GET', 'POST'])
+@login_required
 def add_author():
     form = AuthorForm()
     if form.validate_on_submit():
@@ -56,6 +72,7 @@ def add_author():
 
 
 @app.route('/edit_author/<int:author_id>', methods=['GET', 'POST'])
+@login_required
 def edit_author(author_id):
     author = Author.query.get_or_404(author_id)
     form = AuthorForm(obj=author)
@@ -70,10 +87,10 @@ def edit_author(author_id):
 
 
 @app.route('/delete_author/<int:author_id>', methods=['POST'])
+@login_required
 def delete_author(author_id):
     author = Author.query.get_or_404(author_id)
 
-    # Check if author has books
     if author.books:
         flash("Cannot delete author with associated books. Delete the books first.", "danger")
         return redirect(url_for('author_details', author_id=author_id))
@@ -85,6 +102,7 @@ def delete_author(author_id):
 
 
 @app.route('/add_book', methods=['GET', 'POST'])
+@login_required
 def add_book():
     form = BookForm()
     form.author_id.choices = [(a.id, a.name) for a in Author.query.all()]
@@ -116,22 +134,19 @@ def add_book():
 
 
 @app.route('/edit_book/<int:book_id>', methods=['GET', 'POST'])
+@login_required
 def edit_book(book_id):
     book = Book.query.get_or_404(book_id)
     form = BookForm()
     form.author_id.choices = [(a.id, a.name) for a in Author.query.all()]
 
     if request.method == 'GET':
-        # Manually set form data for GET request
         form.name.data = book.name
-        # Convert string date to datetime object if necessary
         if isinstance(book.publish_date, str):
             from datetime import datetime
             try:
-                # Try to parse the date string - adjust format as needed
                 form.publish_date.data = datetime.strptime(book.publish_date, '%Y-%m-%d').date()
             except ValueError:
-                # If parsing fails, don't set the date
                 form.publish_date.data = None
         else:
             form.publish_date.data = book.publish_date
@@ -161,7 +176,9 @@ def edit_book(book_id):
 
     return render_template('add_book.html', form=form, title="Edit Book", book=book)
 
+
 @app.route('/delete_book/<int:book_id>', methods=['POST'])
+@login_required
 def delete_book(book_id):
     book = Book.query.get_or_404(book_id)
     db.session.delete(book)
@@ -191,6 +208,9 @@ def authors():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
     form = RegistrationForm()
     if form.validate_on_submit():
         hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
@@ -204,13 +224,18 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user and user.check_password(form.password.data):
+            login_user(user)
             session['user_id'] = user.id
+            next_page = request.args.get('next')
             flash('You have been logged in!', 'success')
-            return redirect(url_for('index'))
+            return redirect(next_page) if next_page else redirect(url_for('index'))
         else:
             flash('Login Unsuccessful. Please check email and password', 'danger')
     return render_template('login.html', form=form)
@@ -218,6 +243,7 @@ def login():
 
 @app.route('/logout')
 def logout():
+    logout_user()
     session.pop('user_id', None)
     flash('You have been logged out!', 'success')
     return redirect(url_for('index'))
