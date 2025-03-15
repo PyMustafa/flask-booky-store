@@ -91,6 +91,7 @@ def edit_author(author_id):
 def delete_author(author_id):
     author = Author.query.get_or_404(author_id)
 
+    # Check if author has books
     if author.books:
         flash("Cannot delete author with associated books. Delete the books first.", "danger")
         return redirect(url_for('author_details', author_id=author_id))
@@ -141,12 +142,16 @@ def edit_book(book_id):
     form.author_id.choices = [(a.id, a.name) for a in Author.query.all()]
 
     if request.method == 'GET':
+        # Manually set form data for GET request
         form.name.data = book.name
+        # Convert string date to datetime object if necessary
         if isinstance(book.publish_date, str):
             from datetime import datetime
             try:
+                # Try to parse the date string - adjust format as needed
                 form.publish_date.data = datetime.strptime(book.publish_date, '%Y-%m-%d').date()
             except ValueError:
+                # If parsing fails, don't set the date
                 form.publish_date.data = None
         else:
             form.publish_date.data = book.publish_date
