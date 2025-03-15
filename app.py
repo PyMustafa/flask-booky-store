@@ -1,7 +1,7 @@
-from flask import Flask, render_template, redirect, url_for, flash, request
-from forms import AuthorForm, BookForm
-from models import db, Author, Book
-from datetime import datetime
+from flask import Flask, render_template, redirect, url_for, flash, request, session, g
+from flask_migrate import Migrate
+from forms import AuthorForm, BookForm, RegistrationForm, LoginForm
+from models import db, Author, Book, User, bcrypt
 import os
 from werkzeug.utils import secure_filename
 
@@ -16,11 +16,22 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 
 db.init_app(app)
+migrate = Migrate(app, db)
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+@app.before_request
+def before_request():
+    g.user = None
+    if 'user_id' in session:
+        g.user = User.query.get(session['user_id'])
+
+@app.context_processor
+def inject_user():
+    return dict(user=g.user)
 
 @app.route('/')
 def index():
@@ -79,12 +90,41 @@ def author_details(author_id):
     author = Author.query.get_or_404(author_id)
     return render_template('author_details.html', author=author)
 
-
 @app.route('/authors')
 def authors():
     all_authors = Author.query.all()
     return render_template('authors_list.html', authors=all_authors)
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
+        user = User(username=form.username.data, email=form.email.data, password=hashed_password)
+        db.session.add(user)
+        db.session.commit()
+        flash('Your account has been created! You are now able to log in', 'success')
+        return redirect(url_for('login'))
+    return render_template('register.html', form=form)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user and user.check_password(form.password.data):
+            session['user_id'] = user.id
+            flash('You have been logged in!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Login Unsuccessful. Please check email and password', 'danger')
+    return render_template('login.html', form=form)
+
+@app.route('/logout')
+def logout():
+    session.pop('user_id', None)
+    flash('You have been logged out!', 'success')
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     with app.app_context():
